@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { Wallet, Upload, PlusCircle, Calculator, ShieldCheck, LogOut, ChevronDown } from 'lucide-react';
 
@@ -87,10 +88,13 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-gray-800/80 hover:bg-gray-800 border border-gray-700 transition-all"
             >
               {user?.avatarUrl ? (
-                <img
+                <Image
                   src={user.avatarUrl}
                   alt={user.name || 'User'}
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded-lg object-cover border border-gray-700"
+                  unoptimized
                 />
               ) : (
                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-md">
