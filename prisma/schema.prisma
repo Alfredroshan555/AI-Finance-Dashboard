@@ -1,0 +1,95 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  name         String
+  passwordHash String?
+  googleId     String?     @unique
+  avatarUrl    String?
+  currency     String      @default("INR")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  portfolios   Portfolio[]
+  cashFlows    CashFlow[]
+}
+
+model Portfolio {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  transactions Transaction[]
+  sips        SIP[]
+}
+
+model Asset {
+  id           String        @id @default(uuid())
+  symbol       String        @unique
+  isin         String?
+  name         String
+  category     String        @default("MUTUAL_FUND") // MUTUAL_FUND, ETF, EQUITY, GOLD, DEBT
+  assetClass   String        @default("INDEX")       // LARGE_CAP, MID_CAP, SMALL_CAP, FLEXI_CAP, INDEX, COMMODITY, DEBT
+  currentNAV   Float
+  currency     String        @default("INR")
+  lastUpdated  DateTime      @default(now())
+  transactions Transaction[]
+  sips         SIP[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Transaction {
+  id           String    @id @default(uuid())
+  portfolioId  String
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  assetId      String
+  asset        Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type         String    @default("BUY") // BUY, SELL, DIVIDEND, SIP_BUY
+  units        Float
+  pricePerUnit Float
+  amount       Float
+  fee          Float     @default(0.0)
+  date         DateTime
+  notes        String?
+  createdAt    DateTime  @default(now())
+}
+
+model SIP {
+  id          String    @id @default(uuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  amount      Float
+  frequency   String    @default("MONTHLY") // MONTHLY, WEEKLY, QUARTERLY
+  dayOfMonth  Int       @default(5)
+  status      String    @default("ACTIVE")  // ACTIVE, PAUSED, CANCELLED
+  startDate   DateTime
+  endDate     DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CashFlow {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // INCOME, EXPENSE, SAVING
+  category    String
+  amount      Float
+  date        DateTime
+  description String?
+  createdAt   DateTime @default(now())
+}
