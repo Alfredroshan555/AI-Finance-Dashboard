@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { signToken, setAuthCookie } from '@/lib/auth';
-import jwt from 'jsonwebtoken';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +10,7 @@ interface GoogleTokenInfo {
   name?: string;
   picture?: string;
   email_verified?: string | boolean;
+  aud?: string;
 }
 
 /**
@@ -21,17 +21,32 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleTokenInfo | n
     const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
     if (!googleRes.ok) return null;
 
-    const data = await googleRes.json();
-    if (data.email && data.sub) {
-      return {
-        sub: data.sub,
-        email: data.email,
-        name: data.name || data.email.split('@')[0],
-        picture: data.picture,
-        email_verified: data.email_verified,
-      };
+    const data: GoogleTokenInfo = await googleRes.json();
+
+    if (!data.email || !data.sub) {
+      return null;
     }
-    return null;
+
+    // Verify audience (Client ID) if environment variable is set
+    const expectedClientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (expectedClientId && data.aud !== expectedClientId) {
+      console.error('Google token verification failed: Client ID (aud) mismatch.');
+      return null;
+    }
+
+    // Verify email_verified status
+    if (data.email_verified !== true && data.email_verified !== 'true') {
+      console.error('Google token verification failed: Email is not verified.');
+      return null;
+    }
+
+    return {
+      sub: data.sub,
+      email: data.email,
+      name: data.name || data.email.split('@')[0],
+      picture: data.picture,
+      email_verified: data.email_verified,
+    };
   } catch (error) {
     console.error('Google token verification error:', error);
     return null;
@@ -41,29 +56,20 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleTokenInfo | n
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { credential, mockUser } = body;
+    const { credential } = body;
 
-    let googleProfile: GoogleTokenInfo | null = null;
-
-    // Handle real Google GIS Credential
-    if (credential) {
-      googleProfile = await verifyGoogleIdToken(credential);
+    if (!credential || typeof credential !== 'string') {
+      return NextResponse.json(
+        { error: 'Google authentication credential is required.' },
+        { status: 400 }
+      );
     }
 
-    // Developer Mock Mode strictly guarded for non-production environments
-    const isDevEnvironment = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_MOCK_AUTH === 'true';
-    if (!googleProfile && mockUser && isDevEnvironment) {
-      googleProfile = {
-        sub: mockUser.sub || `demo-google-sub-${Date.now()}`,
-        email: mockUser.email || 'demo.google@wealthpulse.ai',
-        name: mockUser.name || 'Google Demo User',
-        picture: mockUser.picture || 'https://lh3.googleusercontent.com/a/default-user',
-      };
-    }
+    const googleProfile = await verifyGoogleIdToken(credential);
 
     if (!googleProfile || !googleProfile.email) {
       return NextResponse.json(
-        { error: 'Invalid Google authentication token or missing email.' },
+        { error: 'Invalid or expired Google authentication token.' },
         { status: 400 }
       );
     }

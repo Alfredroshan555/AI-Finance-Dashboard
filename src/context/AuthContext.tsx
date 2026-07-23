@@ -16,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string, redirectTo?: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, name: string, password: string, redirectTo?: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (credential?: string, mockUser?: any, redirectTo?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (credential: string, redirectTo?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -83,8 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = (email: string, name: string, password: string, redirectTo = '/') =>
     handleAuthApiCall('/api/auth/register', { email, name, password }, 'Failed to create account.', redirectTo);
 
-  const loginWithGoogle = (credential?: string, mockUser?: any, redirectTo = '/') =>
-    handleAuthApiCall('/api/auth/google', { credential, mockUser }, 'Google SSO failed.', redirectTo);
+  const loginWithGoogle = (credential: string, redirectTo = '/') =>
+    handleAuthApiCall('/api/auth/google', { credential }, 'Google SSO failed.', redirectTo);
 
   const logout = async () => {
     try {
